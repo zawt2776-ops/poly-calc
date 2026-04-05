@@ -1,45 +1,59 @@
 import streamlit as st
 
-st.set_page_config(page_title="Polymarket Rescue Calc", page_icon="📈")
+st.set_page_config(page_title="Poly Rescue & Profit", page_icon="💰")
 
-st.title("🛡️ Polymarket Rescue Calculator")
-st.markdown("Calculate how much more to buy to reach **Break Even**.")
+st.title("💰 Poly Profit & Rescue Pro")
+st.markdown("Calculate how much to buy to hit a **specific profit target**.")
 
 # --- INPUT SECTION ---
-st.header("Current Position")
+st.header("1. Current Position")
 col1, col2 = st.columns(2)
 
 with col1:
-    avg_up = st.number_input("Avg Odd (UP)", value=0.70, step=0.01)
+    avg_up = st.number_input("Avg Odd (UP)", value=0.70, format="%.2f")
     shares_up = st.number_input("Shares Owned (UP)", value=285.0, step=1.0)
 
 with col2:
-    avg_down = st.number_input("Avg Odd (DOWN)", value=0.35, step=0.01)
+    avg_down = st.number_input("Avg Odd (DOWN)", value=0.35, format="%.2f")
     shares_down = st.number_input("Shares Owned (DOWN)", value=285.0, step=1.0)
 
 total_spent = (avg_up * shares_up) + (avg_down * shares_down)
-st.info(f"**Total Invested So Far:** ${total_spent:,.2f}")
+st.metric("Total Invested", f"${total_spent:,.2f}")
 
-# --- CALCULATION SECTION ---
-st.header("Rescue Plan")
-target_side = st.selectbox("Which side do you think will win?", ["UP", "DOWN"])
-current_market_odd = st.number_input(f"Current Market Odd for {target_side}", value=0.75 if target_side == "UP" else 0.40, step=0.01)
+# --- PROFIT TARGET ---
+st.header("2. Set Your Goal")
+target_side = st.radio("Which side are you backing?", ["UP", "DOWN"], horizontal=True)
+current_market_odd = st.number_input(f"Current {target_side} Price (Odd)", value=0.75 if target_side == "UP" else 0.40, format="%.2f")
+profit_goal = st.number_input("Desired Profit ($)", value=20.0, step=5.0)
 
-# Math: Total Spent = (Current Shares + New Shares) * 1.0
-# New Shares = Total Spent - Current Shares
+# --- CALCULATION ---
+# Total Payout Needed = Total Spent + New Cost + Profit Goal
+# Shares * 1.0 = Total Spent + (New Shares * Price) + Profit Goal
+# New Shares = (Total Spent + Profit Goal - Current Shares) / (1 - Price)
+
 current_shares = shares_up if target_side == "UP" else shares_down
-needed_shares = total_spent - current_shares
+numerator = total_spent + profit_goal - current_shares
+denominator = 1.0 - current_market_odd
 
-if needed_shares <= 0:
-    st.success("✅ You are already in a profit position for this side!")
+if denominator <= 0:
+    st.error("Price cannot be 1.0 or higher!")
 else:
-    cost_to_buy = needed_shares * current_market_odd
+    shares_to_buy = numerator / denominator
     
-    st.warning(f"⚠️ To break even on {target_side}:")
-    st.metric(label="Additional Shares Needed", value=f"{needed_shares:,.2f}")
-    st.metric(label="Estimated Cost (USD)", value=f"${cost_to_buy:,.2f}")
-    
-    st.write(f"**Final Result:** If you spend **${cost_to_buy:,.2f}**, your total payout will be **${total_spent + (needed_shares * (1.0 - current_market_odd)):,.2f}** which covers your total cost of **${total_spent + cost_to_buy:,.2f}**.")
+    if shares_to_buy <= 0:
+        actual_profit = current_shares - total_spent
+        st.success(f"✅ You are already on track for ${actual_profit:,.2f} profit!")
+    else:
+        cost = shares_to_buy * current_market_odd
+        st.subheader("🚀 Action Plan")
+        st.write(f"To finish with **${profit_goal:,.2f} profit**:")
+        st.warning(f"Buy **{shares_to_buy:,.2f}** more shares of **{target_side}**")
+        st.info(f"**Total Cost to Buy:** ${cost:,.2f}")
 
+# --- MERGE CALCULATOR ---
 st.divider()
-st.caption("Note: This calculation assumes no trading fees and 1.0 payout per share.")
+st.header("🧮 Merge Preview")
+mergeable = min(shares_up, shares_down)
+if st.button(f"Calculate Merge for {mergeable} pairs"):
+    st.write(f"If you merge now, you get **${mergeable:,.2f}** cash back.")
+    st.write(f"Remaining: **{shares_up - mergeable} UP** and **{shares_down - mergeable} DOWN**.")
